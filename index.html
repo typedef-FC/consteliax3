@@ -195,6 +195,18 @@
     let configuration = null;
 
     /**
+     * server address
+     * @type {string}
+     */
+    let server = "http://localhost:9283";
+
+    /**
+     * solution name to get from configuration
+     * @type {string}
+     */
+    let solution_name = "Constellation4";
+
+    /**
      * updates the response content
      * @param str
      */
@@ -242,7 +254,7 @@
             /**
              * get local configuration; store it in the global.
              */
-            let data = await $.get("http://localhost:9283/luar", { req: 2 });
+            let data = await $.get(`${server}/luar`, { req: 2 });
             configuration = data[ solution ];
 
             /**
@@ -329,7 +341,7 @@
                             /**
                              * send information back to FC2
                              */
-                            $.get("http://localhost:9283/luar", {
+                            $.get(`${server}/luar`, {
                                 req: 3,
                                 key: changed_key,
                                 val: changed_to,
@@ -377,7 +389,58 @@
              * we're just going to assume Constellation4 isn't open to why there is an error here. there shouldn't be.
              */
             console.log(error);
-            alert("Constellation4 is not open.");
+            alert("There doesn't seem to be a specific solution running anymore.");
+        }
+    }
+
+    /**
+     * checks if any of the solutions are open
+     * @returns {Promise<void>}
+     */
+    async function check_solution_status()
+    {
+        /**
+         * let's check if universe4 is open first. if not, we're going to check for constellation4
+         * in the case both are open, we will ask the user to pick
+         */
+
+        try {
+            let request1 = $.get(`http://localhost:9282/ping`).then(() => true, () => false);
+            let request2 = $.get(`${server}/ping`).then(() => true, () => false);
+
+            let results = await Promise.all([request1, request2]);
+
+            let is_universe_open = results[0];
+            let is_constellation_open = results[1];
+
+            /** neither solution is open **/
+            if (!is_universe_open && !is_constellation_open) {
+                alert("Both Universe4 and Constellation4 appear to be closed. At least one solution is required.");
+                return;
+            }
+
+            /** only universe4 is open **/
+            if( is_universe_open && !is_constellation_open )
+            {
+                server = "http://localhost:9282";
+                solution_name = "Universe4";
+            }
+
+            /** both are open **/
+            if (is_universe_open && is_constellation_open) {
+                const choice = window.confirm("Universe4 and Constellation4 are both open. consteliax3 needs to know which solution to connect to.\n\nOK: Constellation4\nCancel: Universe4");
+
+                /** always assumed constellation4 by default **/
+                if( !choice ) {
+                    server = "http://localhost:9282";
+                    solution_name = "Universe4";
+                }
+            }
+
+            await get_configuration(solution_name);
+        }
+        catch (error) {
+            console.error(error);
         }
     }
 
@@ -385,7 +448,7 @@
      * LETS GET THIS PARTY STARTED.
      */
     $(document).ready(function() {
-        get_configuration("Constellation4");
+        check_solution_status();
     });
 
     /**
@@ -407,7 +470,7 @@
             /**
              * send a request to Constellation4
              */
-            $.get("http://localhost:9283/luar", {
+            $.get(`${server}/luar`, {
                 req: 1,
                 val: $("#constelia-input").val(),
             } )
